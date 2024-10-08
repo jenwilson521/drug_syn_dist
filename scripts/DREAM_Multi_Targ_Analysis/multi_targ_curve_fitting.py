@@ -428,14 +428,14 @@ def main():
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
     exper_source = 'DREAM'
 	
-    distance_results_dir = os.path.join('../../../results/Distance_Dictionaries', exper_source, interactome_aname)
+    distance_results_dir = os.path.join('../../results/Distance_Dictionaries', exper_source, interactome_aname)
     check_dir(distance_results_dir)
 
-    #All target pair distances across all 27 distance metrics
+    #All target pair distances across all 37 distance metrics
     combined_dist_filename = 'combined_distance_dicts.pkl'
     combined_dist_dict = pickle.load(open(os.path.join(distance_results_dir, combined_dist_filename), 'rb')) #[metric (e.g., T1_to_T2)][alphaD][target pair] = disance
 
-    DREAM_inputs_dir = '../../../data/DREAM_inputs'
+    DREAM_inputs_dir = '../../data/DREAM_inputs'
     targset2syn_file = 'targset_to_syn_dict.pkl'
     targset_to_syn_dict = pickle.load(open(os.path.join(DREAM_inputs_dir, targset2syn_file), 'rb')) #[cell line][Targetset1__Targetset2] = synergy
 
@@ -519,7 +519,7 @@ def main():
         
     
     #Saving all results
-    outpath = os.path.join('../../../results/Multi_Targ_Curve_Fitting', exper_source, interactome_aname)
+    outpath = os.path.join('../../results/Multi_Targ_Curve_Fitting', exper_source, interactome_aname)
     check_dir(outpath)
 
     pickle.dump(opt_pw_dist_all_cl, open(os.path.join(outpath, 'opt_targ_pair_dict_5_cl_37_metrics.pkl'), 'wb'))
