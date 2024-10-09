@@ -127,7 +127,7 @@ def main():
     int_nodes = list(interactome.nodes())
 
     #Load PageRank-Nibble neighborhoods
-    prn_nbhd_path = '../../results/PRN_Hyperparam_Tuning'
+    prn_nbhd_path = '../../results/PRN_neighborhoods'
     prn_nbhd_dir = os.path.join(prn_nbhd_path, interactome_aname, exper_source)
     prn_filename = 'PRN_nbhd_opt_alpha.pkl'
     global prn_nbhd_dict
