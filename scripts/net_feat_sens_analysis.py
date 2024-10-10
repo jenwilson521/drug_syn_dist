@@ -349,7 +349,8 @@ def main():
                     'BT-20': 'indigo'}
 
     #Path where figures are saved
-    figure_path = '../../Figures/M1/Sensitivity_Figs'
+    figure_path = '../../figures/sensitivity_analysis'
+    check_dir(figure_path)
 
     interactome_source = 'PathFX'
     threshold = 0.50
