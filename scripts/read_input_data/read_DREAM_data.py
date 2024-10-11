@@ -12,7 +12,7 @@ def main():
 	#Load interactome
     interactome_source = 'PathFX'
     threshold = 0.50
-    exper_source = 'GI'
+    exper_source = 'DREAM'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
     interactome_path = '../../data/interactomes'
