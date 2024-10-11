@@ -10,6 +10,9 @@ With access to the GI screen data, all analyses with the exception of those with
 
 We provide the code to read and save this data in a format compatible with all other scripts/read_input_data/read_GI_screen_data.py.
 
+## Target neighborhoods
+
+We used https://biit.cs.ut.ee/gprofiler/convert to convert our interactome's gene symbols to gene IDs in order to be compatible with GOATOOL's enrichment analysis. Further, we lifted code from the GOATOOLs repository, https://github.com/tanghaibao/goatools/tree/main, in order to implement enrichment analysis. 
 
 ## Multi-target analysis
 
