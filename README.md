@@ -1,6 +1,8 @@
 # drug_syn_dist
 
-This suite of code consists of the necessary scripts to execute our network model of protein target combinations within the interactome. Can be applied to any combination screen as long as protein targets and experimental readouts (i.e., synergy scores) are available.
+This suite of code consists executes our network model of protein target combinations within the interactome. 
+
+Can be applied to any combination screen as long as protein targets and experimental readouts (i.e., synergy scores) are available.
 
 ## Input data
 
