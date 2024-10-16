@@ -1,6 +1,6 @@
 # drug_syn_dist
 
-This suite of code consists executes our network model of protein target combinations within the interactome. The model only requires a weighted, undirected interactome text file, which we provide in data/0.5thr_filtered_PathFX_scored_interactome, and combined perturbed protein targets with their corresponding experimental readout out of combination effects. Therefore, while we use two example data sources, our model can be applied to any combination screen as long as protein targets and synergy scores (or a similar readout) are available.
+This suite of code executes our network model of protein target combinations within the interactome. The model only requires a weighted, undirected interactome text file, which we provide in data/0.5thr_filtered_PathFX_scored_interactome, and combined perturbed protein targets with their corresponding experimental readout out of combination effects. Therefore, while we use two example data sources, our model can be applied to any combination screen as long as protein targets and synergy scores (or a similar readout) are available.
 
 ## Input data
 
