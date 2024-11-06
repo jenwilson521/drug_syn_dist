@@ -15,7 +15,7 @@ def main():
     exper_source = 'DREAM'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
-    interactome_path = '../../data/interactomes'
+    interactome_path = '../../data'
     interactome_file = str(threshold) + 'thr_filtered_' + interactome_source + '_scored_interactome.txt'
     interactome_df = pd.read_csv(os.path.join(interactome_path, interactome_file), sep = '\t', na_filter = False)
     interactome = nx.from_pandas_edgelist(interactome_df, 'protein1', 'protein2', edge_attr = 'cost')
@@ -44,7 +44,7 @@ def main():
                        'FGFR1OP2', 'JAKMIP1', 'Abl', 'Abacavir', 'Gemcitabine', 'IKBKAP', 'M2']
     
     combo_to_syn_dict = defaultdict(dd_list)
-    targset_to_combo_dict = defaultdict(dd_list) #[cell line][T1_T2_T3__TT1_TT2__TT3__TT4] = ['D1__D2', 'D1__D2',...]
+    targset_to_combo_dict = defaultdict(dd_list) #[cell line][T1_T2_T3__TT1_TT2_TT3_TT4] = ['D1__D2', 'D1__D2',...]
     for cl in cell_lines:
 
         comp_a = DREAM_df[DREAM_df['CELL_LINE'] == cl].COMPOUND_A.tolist()
@@ -90,12 +90,13 @@ def main():
                             if n not in targs_to_remove:
                                 target_set.append(n)
 
+                if len(target_set) > 0: #Filtering out drugs without any targets in the interactome (i.e., target_set = [])
+                    combo_target_set.append('_'.join(sorted(target_set)))
 
-                combo_target_set.append('_'.join(sorted(target_set)))
-
-            combo_target_set_str = '__'.join(combo_target_set)
-            targset_to_combo_dict[cl][combo_target_set_str].append(combo)
-
+            if len(combo_target_set) > 1:
+                combo_target_set_str = '__'.join(combo_target_set)
+                targset_to_combo_dict[cl][combo_target_set_str].append(combo)
+    
     #Combining all synergy scores (and averaging) for a given combination of target sets since some target sets corresponded to more than one drug
     targset_to_syn_dict = defaultdict(dd_float)
     for cl in cell_lines:
@@ -108,6 +109,8 @@ def main():
                     syn_per_targset_combo.append(syn)
             
             targset_to_syn_dict[cl][targset_combo] = np.mean(syn_per_targset_combo)
+    
+    print(targset_to_syn_dict)
     
     #Save results
     outpath = '../../data/DREAM_inputs'
