@@ -8,7 +8,7 @@ We use two example datasets of protein target combinations - a gene interaction 
 
 The GI screen data are publicly available at https://www.nature.com/articles/nbt.3834, Supplemental Table 4. With access to the GI screen data, all analyses with the exception of those within the multi_targ_analysis folder can be executed. We provide the code to read and save this data in a format compatible with all other scripts in scripts/read_input_data/read_GI_screen_data.py.
 
-The small molecule combination screen comes from a DREAM challenge and is available upon application at the protal: https://www.synapse.org/Synapse:syn18496666. Once provided access, the code provided in scripts/read_input_data/read_DREAM_data.py reads and saves this data in a format compatible with the rest of the model. Select small molecules in this dataset had an identifiable name in DrugBank. We provide the necessary files to extract their corresponding protein targets at resources/Drugbank050120.xlsx and resources/Pfx050120_dint.pkl.
+The small molecule combination screen comes from a DREAM challenge and is available upon application at the portal: https://www.synapse.org/Synapse:syn18496666. Once given access, the code provided in scripts/read_input_data/read_DREAM_data.py reads and saves this data in a format compatible with the rest of the model. Select small molecules in this dataset had an identifiable name in DrugBank. We provide the necessary files to extract their corresponding protein targets at resources/Drugbank050120.xlsx and resources/Pfx050120_dint.pkl.
 
 ## Target neighborhoods
 
