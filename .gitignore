@@ -1,3 +1,6 @@
 data/OI_combinations_synergy_scores_final.txt
 data/nci_almanac_single_drugs.pkl
 data/nci_almanac_combo_syn_scores.pkl
+data/DREAM_inputs/combo_to_syn_dict.pkl
+data/DREAM_inputs/targset_to_combo_dict.pkl
+data/DREAM_inputs/targset_to_syn_dict.pkl

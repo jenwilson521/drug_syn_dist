@@ -12,13 +12,18 @@ def get_all_targs(targ_combos_list):
         :returns all_targs: list
             [T1, T2, T3, T4, ...]
     """
-    all_targs = set()
+    targs_set = set()
     for targ_combo in targ_combos_list:
         for targ in targ_combo.split('__'):
             for t in targ.split('_'): #for cases of multi-target drugs
-                all_targs.add({t}) #MyGraph takes in a set of genes
+                targs_set.add(t)
+    
+    all_targs = list()
+    for targ in targs_set:
+        all_targs.append({targ})
+         
 
-    return list(all_targs)             
+    return all_targs             
 
 def run_prn(restart_proba, interactome_dir, all_targs):
     """
@@ -60,10 +65,10 @@ def main():
     #Load interactome
     interactome_source = 'PathFX'
     threshold = 0.50
-    exper_source = 'GI'
+    exper_source = 'DREAM'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
-    interactome_path = '../../data/interactomes'
+    interactome_path = '../../data'
     interactome_file = str(threshold) + 'thr_filtered_' + interactome_source + '_scored_interactome.txt'
     interactome_dir = os.path.join(interactome_path, interactome_file)
     interactome_df = pd.read_csv(interactome_dir, sep = '\t', na_filter = False)
@@ -89,7 +94,6 @@ def main():
 
     all_targs = get_all_targs(targ_combos_list)
 
-
     #Run PRN for all targets using different restart probabilities
     restart_proba_all = np.concatenate((np.arange(0.02, 0.15, 0.02), np.arange(0.05, 0.80, 0.05))) #22 values in the range 0.02-0.75
     dd_list = functools.partial(defaultdict, list)
@@ -97,12 +101,12 @@ def main():
     nbhd_dict_all_alpha = defaultdict(dd_list)
     conduct_dict_all_alpha = defaultdict(dd_float)
     for restart_proba in restart_proba_all:
-        rp = np.round(restart_proba)
+        rp = np.round(restart_proba, 3)
         nbhd_dict, conduct_dict = run_prn(rp, interactome_dir, all_targs)
         nbhd_dict_all_alpha[rp] = nbhd_dict
         conduct_dict_all_alpha[rp] = conduct_dict
 
-        print(rp, 'done')
+        print(rp, 'restart probability done')
     
     #Save results
     prn_results_path = '../../results/PRN_neighborhoods'
