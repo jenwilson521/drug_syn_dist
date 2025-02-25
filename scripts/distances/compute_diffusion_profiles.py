@@ -171,7 +171,6 @@ def main():
             #Saving results
             #Something weird happens with dp_dict during pool process, need to convert back to dictionary
             dp_dict_save = dict(dp_dict)
-
             dp_results_path = '../../results/RWR_diffusion_profiles'
             dp_results_dir = os.path.join(dp_results_path, exper_source, interactome_aname)
             check_dir(dp_results_dir)

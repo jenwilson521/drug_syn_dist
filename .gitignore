@@ -4,3 +4,7 @@ data/nci_almanac_combo_syn_scores.pkl
 data/DREAM_inputs/combo_to_syn_dict.pkl
 data/DREAM_inputs/targset_to_combo_dict.pkl
 data/DREAM_inputs/targset_to_syn_dict.pkl
+data/Bliss_score_list_92_drugs_MDVR.xlsx
+data/Bliss_score_list_92_drugs_22RV1.xlsx
+
+results/*

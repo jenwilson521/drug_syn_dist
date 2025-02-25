@@ -94,7 +94,7 @@ def main():
                 conduct = conduct_dict_all_alpha[alpha][targ]
                 nbhd_size = nbhd_dict_all_alpha[alpha][targ]
 
-                targ_to_tuple_dict[targ].append((alpha, nbhd_size, conduct))
+                targ_to_tuple_dict[targ].append((alpha, nbhd_size, conduct)) #[targ] = [(0.02, 40, 0.7), (0.04, 45, 0.8)...]
 
     #Rank alphas according to neighborhood size and conductance, save optimal
     targ_to_opt_alpha_tuple_dict = rank_alpha(targ_to_tuple_dict)     

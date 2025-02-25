@@ -30,7 +30,7 @@ def get_all_combos(targset_list):
 
     return set_combo
 
-def get_cell_line_combos(dist_dict):
+def get_cell_line_combos(combo_targset_list, dist_dict):
 
     """
         Creates a dictionary with (pw_combo, distance) tuples, unique to the given cell line
@@ -157,7 +157,7 @@ def model_lossfunc(dist, exper_syn, a, b, c = 0, d = 0):
 
     return model_loss
 
-def optimize_lossfunc(exper_syn, initial_pred, a, b, c = 0, d = 0, maxiter = 1000):
+def optimize_lossfunc(exper_syn, initial_pred, pw_dist_dict, a, b, c = 0, d = 0, maxiter = 1000):
 
     """
         Updates curve parameters, distances, and predicted synergies in order to minimize model loss
@@ -231,7 +231,7 @@ def fit_curve(dist_syn_list):
 
     return popt, pcov
 
-def find_opt_pw_dist(combo_targset, opt_dist):
+def find_opt_pw_dist(combo_targset, opt_dist, pw_combo_and_dist_dict):
     """
         Finds pairwise distance within combo's distance vector
         that is most similar to the optimal distance following fitting
@@ -266,7 +266,7 @@ def find_opt_pw_dist(combo_targset, opt_dist):
 
     return opt_pw_combo_dict
 
-def pipeline(dist_syn_list):
+def pipeline(dist_syn_list, pw_combo_and_dist_dict):
 
     """
 
@@ -286,6 +286,8 @@ def pipeline(dist_syn_list):
     :return opt_pw_combo_dict: dictionary 
         [target set 1__target set 2] = (target 1__target 2, distance)
     """
+    pw_dist_dict = {combo_targset: list(zip(*combo_dist))[1] 
+                                for combo_targset, combo_dist in pw_combo_and_dist_dict.items()}
 
     combo_targset = list(zip(*dist_syn_list))[0]
     input_dist = list(zip(*dist_syn_list))[1]
@@ -294,9 +296,9 @@ def pipeline(dist_syn_list):
     pre_popt, pcov = fit_curve(dist_syn_list) #pre_opt = curve parameters, pcov = covariance matrix
 
     #NOTE - update pre_opt parameters according to curve type (e.g., for second-degree poly, use pre_popt[0], pre_popt[2], pre_popt[3])
-    opt = optimize_lossfunc(exper_syn, input_dist, pre_popt[0], pre_popt[1], maxiter = 1000) #opt = object output from scipy.optimize.minimize
+    opt = optimize_lossfunc(exper_syn, input_dist, pw_dist_dict, pre_popt[0], pre_popt[1], maxiter = 1000) #opt = object output from scipy.optimize.minimize
 
-    opt_pw_combo_dict = find_opt_pw_dist(combo_targset, opt.x) #
+    opt_pw_combo_dict = find_opt_pw_dist(combo_targset, opt.x, pw_combo_and_dist_dict) #
 
     opt_pw_dist = list(zip(*list(opt_pw_combo_dict.values())))[1]
 
@@ -307,6 +309,8 @@ def pipeline(dist_syn_list):
 
     pcc_corr, pcc_pval = pearsonr(opt_pw_dist, exper_syn)
     spearman_corr, spearman_pval = spearmanr(opt_pw_dist, exper_syn)
+    #print('PEARSON:', pearsonr(opt_pw_dist, exper_syn))
+    #print('SPEARMAN:', spearmanr(opt_pw_dist, exper_syn))
 
     df = len(opt_pw_dist) - len(opt_popt) #degrees of freedom
     rmse = np.sqrt(np.sum((np.array(exper_syn) - np.array(final_syn_pred))**2) / df) #root mean squared error
@@ -322,6 +326,9 @@ def pipeline(dist_syn_list):
         rand_post_fit_rmse.append(rmse)
         rand_pre_fit_params.append(pre_popt)
         rand_cond_num.append(np.linalg.cond(pcov))
+    elif analysis == 'cross-validation':
+        post_fit_pcc_train[cl][metric][a].append((pcc_corr, pcc_pval))
+        post_fit_spearman_train[cl][metric][a].append((spearman_corr, spearman_pval))
     else:
         post_fit_pcc[cl][metric][a].append((pcc_corr, pcc_pval))
         post_fit_spearman[cl][metric][a].append((spearman_corr, spearman_pval))
@@ -329,9 +336,9 @@ def pipeline(dist_syn_list):
         pre_fit_params[cl][metric][a].append(pre_popt)
         cond_num[cl][metric][a].append(np.linalg.cond(pcov))
 
-    return opt_pw_combo_dict
+    return opt_pw_combo_dict, opt_popt
 
-def run_random_starting_point(num_cores):
+def run_random_starting_point(num_cores, pw_combo_and_dist_dict):
 
     """
     :param num_cores = # of processing units
@@ -364,11 +371,13 @@ def run_random_starting_point(num_cores):
     global analysis
     analysis = 'random starting point'
     #Multi-processing to run curve fitting pipeline x98
+    zip_params = zip(rand_dist_syn_list, [pw_combo_and_dist_dict]*len(rand_dist_syn_list))
     with Pool(processes = num_cores) as pool:
-                    pool.map(pipeline, rand_dist_syn_list)
+                    pool.starmap(pipeline, zip_params)
 
                     pool.close() 
                     pool.join()
+    sys.stdout.flush()
     
     #Joining results with full dictionaires
     for (pcc_corr, spearman_corr, rmse, cn, pre_params, post_params) in zip(rand_post_fit_pcc, rand_post_fit_spearman, rand_post_fit_rmse, rand_pre_fit_params, rand_cond_num):
@@ -379,7 +388,7 @@ def run_random_starting_point(num_cores):
                     cond_num[cl][metric][a].append(cn)
                     pre_fit_params[cl][metric][a].append(pre_params)
 
-def run_shuffle_syn(merged_nbhd_dist_syn_list):
+def run_shuffle_syn(merged_nbhd_dist_syn_list, pw_combo_and_dist_dict):
 
     """
         Shuffles synergy scores and runs curve fitting pipeline x 100
@@ -405,10 +414,80 @@ def run_shuffle_syn(merged_nbhd_dist_syn_list):
         merged_nbhd_dist_shuffle_syn_list = [(combo_targset, dist, targset_to_shuffle_syn_dict[combo_targset])
                             for (combo_targset, dist, real_syn)  in merged_nbhd_dist_syn_list]
         
-        pipeline(merged_nbhd_dist_shuffle_syn_list)
+        pipeline(merged_nbhd_dist_shuffle_syn_list, pw_combo_and_dist_dict)
 
         #Re-ordering synergy scores according to combo_targset_list
         syn_list = [syn for combo, syn in targset_to_syn_dict[cl].items() if combo in combo_targset_list]
+
+
+def infer_dist(exper_syn, a, b):
+    """
+        For cross-validation... 
+        TODO - update description once method is finalized
+     
+    """
+    pred_dist = [(s - b) / a for s in exper_syn]
+    return pred_dist
+
+def run_cross_validation(targset_train_test_split):
+    """
+    :param targset_train_test_split:
+        generator object of combo_targsets split for training and testing
+    
+    """
+
+    fold = 1
+    pcc_list = list()
+    spearman_list = list()
+    for train_index, test_index in targset_train_test_split:
+
+        combo_targset_train = [combo_targset_list[i] for i in train_index]
+        combo_targset_test = [combo_targset_list[i] for i in test_index]
+
+        print('FOLD:', fold, '# of training:', len(combo_targset_train), '# of testing:', len(combo_targset_test))
+
+        pw_combo_and_dist_dict_train = get_cell_line_combos(combo_targset_train, combined_dist_dict[metric][a])
+        pw_combo_and_dist_dict_test = get_cell_line_combos(combo_targset_test, combined_dist_dict[metric][a])
+
+        dist_syn_train = [(combo_targset, merged_nbhd_dist_by_targset_dict[metric][a][combo_targset], targset_to_syn_dict[cl][combo_targset])
+                        for combo_targset in combo_targset_train] #[(Target set 1__Target set 2, merged nbhd dist, synergy)]
+        
+        dist_syn_test = [(combo_targset, merged_nbhd_dist_by_targset_dict[metric][a][combo_targset], targset_to_syn_dict[cl][combo_targset])
+                        for combo_targset in combo_targset_test] #[(Target set 1__Target set 2, merged nbhd dist, synergy)]
+
+        #print("Train index:", train_index, "Test index:", test_index)
+        #dist_syn_train = [merged_nbhd_dist_syn_list[i] for i in train_index] 
+        #dist_syn_test = [merged_nbhd_dist_syn_list[i] for i in test_index]
+        #print('# of training combos:', len(dist_syn_train))
+        _, opt_popt = pipeline(dist_syn_train, pw_combo_and_dist_dict_train)
+
+
+        #print('# of testing combos:', len(dist_syn_test))
+        exper_syn_test = list(zip(*dist_syn_test))[2]
+        combo_targset_test = list(zip(*dist_syn_test))[0]
+        dist_pred = infer_dist(exper_syn_test, opt_popt[0], opt_popt[1])
+
+        opt_pw_combo_dict = find_opt_pw_dist(combo_targset_test, dist_pred, pw_combo_and_dist_dict_test)
+
+        opt_pw_dist = list(zip(*list(opt_pw_combo_dict.values())))[1]
+
+        pcc_corr, pcc_pval = pearsonr(opt_pw_dist, exper_syn_test)
+        spearman_corr, spearman_pval = spearmanr(opt_pw_dist, exper_syn_test)
+        #print('TEST PEARSON:', pearsonr(opt_pw_dist, exper_syn_test))
+        #print('TEST SPEARMAN:', spearmanr(opt_pw_dist, exper_syn_test))
+
+        pcc_list.append(pcc_corr)
+        spearman_list.append(spearman_corr)
+
+        post_fit_pcc_test[cl][metric][a].append((pcc_corr, pcc_pval))
+        post_fit_spearman_test[cl][metric][a].append((spearman_corr, spearman_pval))
+
+        fold += 1
+    
+    print('TEST PEARSON:', np.mean(pcc_list), np.median(pcc_list), pcc_list)
+    print('TEST SPEARMAN:', np.mean(spearman_list), np.median(spearman_list), spearman_list)
+     
+
 
 def main():
 
@@ -422,6 +501,11 @@ def main():
     global post_fit_pcc_shuffle
     global post_fit_spearman_shuffle
     global post_fit_rmse_shuffle
+
+    global post_fit_pcc_train
+    global post_fit_spearman_train
+    global post_fit_pcc_test
+    global post_fit_spearman_test
 	
     interactome_source = 'PathFX'
     threshold = 0.50
@@ -432,6 +516,7 @@ def main():
     check_dir(distance_results_dir)
 
     #All target pair distances across all 37 distance metrics
+    global combined_dist_dict
     combined_dist_filename = 'combined_distance_dicts.pkl'
     combined_dist_dict = pickle.load(open(os.path.join(distance_results_dir, combined_dist_filename), 'rb')) #[metric (e.g., T1_to_T2)][alphaD][target pair] = disance
 
@@ -440,6 +525,7 @@ def main():
     targset_to_syn_dict = pickle.load(open(os.path.join(DREAM_inputs_dir, targset2syn_file), 'rb')) #[cell line][Targetset1__Targetset2] = synergy
 
     #Used for initializing fitting with each combo's merged neighborhood distance
+    global merged_nbhd_dist_by_targset_dict
     merged_nbhd_dist_by_targset_filename = 'combined_distance_dicts_by_targset.pkl'
     merged_nbhd_dist_by_targset_dict = pickle.load(open(os.path.join(distance_results_dir, merged_nbhd_dist_by_targset_filename), 'rb')) #[metric (e.g., T1_to_T2)][alphaD][target set combo] = distance
 
@@ -456,7 +542,12 @@ def main():
     post_fit_spearman_shuffle = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
     post_fit_rmse_shuffle = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
     cond_num = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
-    
+
+    post_fit_pcc_train = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
+    post_fit_spearman_train = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
+    post_fit_pcc_test = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
+    post_fit_spearman_test = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
+
     opt_pw_dist_all_cl = {cl: {metric: {a: [] for a in combined_dist_dict[metric].keys()} for metric in combined_dist_dict.keys()} for cl in cl_all}
 
     global cl
@@ -469,6 +560,7 @@ def main():
 
     #Looping through all cell lines (n = 5), metrics (n = 6), and alphaDs (n = 6)
     for cl in cl_all:
+        print(cl)
 
         global combo_targset_list
         if model_name == 'posyn':
@@ -480,63 +572,80 @@ def main():
 
         for metric in combined_dist_dict.keys():
             for a in combined_dist_dict[metric].keys():
+                print(metric, a)
                  
-                global pw_combo_and_dist_dict #[combo_targset] = [(targ_pair, pw_dist)]
-                pw_combo_and_dist_dict = get_cell_line_combos(combined_dist_dict[metric][a])
+                #These lines should be combined into a single function... 
+                #global pw_combo_and_dist_dict #[combo_targset] = [(targ_pair, pw_dist)]
+                pw_combo_and_dist_dict = get_cell_line_combos(combo_targset_list, combined_dist_dict[metric][a]) #pw_combo_and_dist_dict #[combo_targset] = [(targ_pair, pw_dist)]
 
-                global pw_dist_dict #[combo_targset] = [pw_dist1, pw_dist2, ...]
-                pw_dist_dict = {combo_targset: list(zip(*combo_dist))[1] 
-                                for combo_targset, combo_dist in pw_combo_and_dist_dict.items()}
+                #global pw_dist_dict #[combo_targset] = [pw_dist1, pw_dist2, ...]
+                #pw_dist_dict = {combo_targset: list(zip(*combo_dist))[1] 
+                #                for combo_targset, combo_dist in pw_combo_and_dist_dict.items()}
 
                 merged_nbhd_dist_syn_list = [(combo_targset, merged_nbhd_dist_by_targset_dict[metric][a][combo_targset], targset_to_syn_dict[cl][combo_targset])
                         for combo_targset in combo_targset_list] #[(Target set 1__Target set 2, merged nbhd dist, synergy)]
                 
                 #Run pipeline with merged neighborhood distance initialization
                 analysis = 'merged neighborhood'
-                opt_pw_dist_dict = pipeline(merged_nbhd_dist_syn_list)
+                #opt_pw_dist_dict, _ = pipeline(merged_nbhd_dist_syn_list, pw_combo_and_dist_dict)
 
                 #Combining results across all cell lines, metrics, and alphaDs
-                for combo_targset, pw_dist_tuple in opt_pw_dist_dict.items():
-                    opt_pw_dist_all_cl[cl][metric][a].append((combo_targset, pw_dist_tuple[0], pw_dist_tuple[1]))
+                #for combo_targset, pw_dist_tuple in opt_pw_dist_dict.items():
+                #    opt_pw_dist_all_cl[cl][metric][a].append((combo_targset, pw_dist_tuple[0], pw_dist_tuple[1]))
 
                 #Run pipeline by initializing it with (1) min and (2) max pairwise distances
                 min_dist_syn_list = [(combo_targset, np.min(list(zip(*pw_combo_and_dist_dict[combo_targset]))[1]), targset_to_syn_dict[cl][combo_targset])
                       for combo_targset in combo_targset_list]
                 analysis = 'min'
-                pipeline(min_dist_syn_list)
+                #pipeline(min_dist_syn_list, pw_combo_and_dist_dict)
 
                 analysis = 'max'
                 max_dist_syn_list = [(combo_targset, np.max(list(zip(*pw_combo_and_dist_dict[combo_targset]))[1]), targset_to_syn_dict[cl][combo_targset])
                             for combo_targset in combo_targset_list]
-                pipeline(max_dist_syn_list)
+                #pipeline(max_dist_syn_list, pw_combo_and_dist_dict)
 
                 #Run pipeline using random initializations (i.e., starting points) x98
                 num_cores = mp.cpu_count()
-                run_random_starting_point(num_cores)
+                #run_random_starting_point(num_cores, pw_combo_and_dist_dict)
 
                 #Run pipeline using shuffled synergy scores x100
-                run_shuffle_syn(merged_nbhd_dist_syn_list)
+                #run_shuffle_syn(merged_nbhd_dist_syn_list, pw_combo_and_dist_dict)
+
+                #for train_index, test_index in targset_train_test_split:
+                #    print("Train index:", train_index, "Test index:", test_index)
+                
+                #Initializing split for cross-validation
+                analysis = 'cross-validation'
+                kf = KFold(n_splits = 5, shuffle = True, random_state = 333)
+                targset_train_test_split = kf.split(combo_targset_list)
+                run_cross_validation(targset_train_test_split)
         
     
     #Saving all results
     outpath = os.path.join('../../results/Multi_Targ_Curve_Fitting', exper_source, interactome_aname)
     check_dir(outpath)
 
-    pickle.dump(opt_pw_dist_all_cl, open(os.path.join(outpath, 'opt_targ_pair_dict_5_cl_37_metrics.pkl'), 'wb'))
+    #pickle.dump(opt_pw_dist_all_cl, open(os.path.join(outpath, 'opt_targ_pair_dict_5_cl_37_metrics.pkl'), 'wb'))
 
-    pickle.dump(post_fit_pcc, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_spearman, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_rmse, open(os.path.join(outpath, 'post_fit_rse_dict_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(cond_num, open(os.path.join(outpath, 'post_fit_cond_num_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(pre_fit_params, open(os.path.join(outpath, 'pre_fit_curve_params_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_pcc, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_spearman, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_rmse, open(os.path.join(outpath, 'post_fit_rse_dict_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(cond_num, open(os.path.join(outpath, 'post_fit_cond_num_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(pre_fit_params, open(os.path.join(outpath, 'pre_fit_curve_params_' + model_name + '.pkl'), 'wb'))
 
-    pickle.dump(post_fit_pcc_shuffle, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_shuffle_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_spearman_shuffle, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_shuffle_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_rmse_shuffle, open(os.path.join(outpath, 'post_fit_rse_dict_shuffle_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_pcc_shuffle, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_shuffle_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_spearman_shuffle, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_shuffle_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_rmse_shuffle, open(os.path.join(outpath, 'post_fit_rse_dict_shuffle_' + model_name + '.pkl'), 'wb'))
+
+    pickle.dump(post_fit_pcc_train, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
+    pickle.dump(post_fit_spearman_train, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
+    pickle.dump(post_fit_pcc_test, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
+    pickle.dump(post_fit_spearman_test, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
+
 
 
 if __name__ == "__main__":
-    import pickle, os, functools
+    import pickle, os, functools, sys
     import pandas as pd
     import numpy as np
     from collections import defaultdict
@@ -545,6 +654,7 @@ if __name__ == "__main__":
     from numpy.random import choice
     from scipy.stats import pearsonr, spearmanr
     from multiprocessing import Pool, Manager
+    from sklearn.model_selection import KFold
     import multiprocessing as mp
     import random
 

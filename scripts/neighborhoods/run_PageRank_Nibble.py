@@ -40,10 +40,10 @@ def run_prn(restart_proba, interactome_dir, all_targs):
             List of all input targets from given experimental source
             [T1, T2, T3, ...]
         
-        :retrun nbhd_dict: dictionary
+        :return nbhd_dict: dictionary
             [Target] = [neighbor 1, neighbor 2, ...]
         
-        :reutrn conduct_dict: dictionary
+        :return conduct_dict: dictionary
             [Target] = neighborhood conductance
     
     """
