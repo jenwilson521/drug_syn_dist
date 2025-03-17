@@ -1,10 +1,6 @@
-data/OI_combinations_synergy_scores_final.txt
-data/nci_almanac_single_drugs.pkl
-data/nci_almanac_combo_syn_scores.pkl
-data/DREAM_inputs/combo_to_syn_dict.pkl
-data/DREAM_inputs/targset_to_combo_dict.pkl
-data/DREAM_inputs/targset_to_syn_dict.pkl
-data/Bliss_score_list_92_drugs_MDVR.xlsx
+data/DREAM_inputs/*
+data/Nair_et_al_inputs/*
+data/NCI_ALMANAC_inputs/*
 data/Bliss_score_list_92_drugs_22RV1.xlsx
 
 results/*
