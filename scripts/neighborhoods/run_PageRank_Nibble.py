@@ -23,7 +23,37 @@ def get_all_targs(targ_combos_list):
         all_targs.append({targ})
          
 
-    return all_targs             
+    return all_targs    
+
+def get_all_unique_NCI_targs(dbid_to_targs_dict, GI_nbhds, DREAM_nbhds):
+    """
+        Extracts all targets from the NCI ALMANAC dataset that don't overlap with targets from other screens
+
+        :param dbid_to_targs_dict: dictionary
+            [DrugBank ID] = [T1, T2, T3, ...]
+        
+        :param GI_nbhds: dictionary
+            [Target] = [nbhd_protein_1, ...]
+
+        :param DREAM_nbhds: dictionary
+            [Target] = [nbhd_protein_1, ...]     
+            
+        :returns all_targs: list
+            [T1, T2, T3, T4, ...]
+    """ 
+
+    targs_set = set()
+    for dbid in dbid_to_targs_dict.keys():
+        for targ in dbid_to_targs_dict[dbid]:
+            if targ not in list(GI_nbhds.keys()) and targ not in list(DREAM_nbhds.keys()):
+                targs_set.add(targ)
+    
+    all_targs = list()
+    for targ in targs_set:
+        all_targs.append({targ})
+
+    return all_targs
+            
 
 def run_prn(restart_proba, interactome_dir, all_targs):
     """
@@ -65,7 +95,7 @@ def main():
     #Load interactome
     interactome_source = 'PathFX'
     threshold = 0.50
-    exper_source = 'DREAM'
+    exper_source = 'NCI_ALMANAC'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
     interactome_path = '../../data'
@@ -81,6 +111,8 @@ def main():
         file_name = 'GT_scores_dict.pkl'
         targ_to_syn_dict = pickle.load(open(os.path.join(data_path, file_name), 'rb')) #[T1__T2] = GT score
         targ_combos_list = list(targ_to_syn_dict.keys())
+        all_targs = get_all_targs(targ_combos_list)
+    
     elif exper_source == 'DREAM':
         data_path = '../../data/DREAM_inputs'
         file_name = 'targset_to_syn_dict.pkl'
@@ -91,8 +123,23 @@ def main():
                 targ_combos_set.add(targset_combo)
             
         targ_combos_list = list(targ_combos_set)
+        all_targs = get_all_targs(targ_combos_list)
 
-    all_targs = get_all_targs(targ_combos_list)
+    elif exper_source == 'NCI_ALMANAC':
+        data_path = '../../data/NCI_ALMANAC_inputs'
+        file_name = 'dbid_to_targs_dict_db_022825.pkl'
+        dbid_to_targs_dict = pickle.load(open(os.path.join(data_path, file_name), 'rb')) #DBID = target list
+         
+        #Load GI and DREAM optimal neighborhoods, only applying PRN to UNIQUE targets from the NCI dataset
+        nbhd_path = '../../results/neighborhoods'
+        nbhd_file = 'PRN_nbhd_opt_alpha.pkl'
+        nbhd_exper_source = 'GI'
+        GI_nbhds = pickle.load(open(os.path.join(nbhd_path, interactome_aname, nbhd_exper_source, nbhd_file), 'rb'))
+        nbhd_exper_source = 'DREAM'
+        DREAM_nbhds = pickle.load(open(os.path.join(nbhd_path, interactome_aname, nbhd_exper_source, nbhd_file), 'rb'))
+
+        all_targs = get_all_unique_NCI_targs(dbid_to_targs_dict, GI_nbhds, DREAM_nbhds)
+
 
     #Run PRN for all targets using different restart probabilities
     restart_proba_all = np.concatenate((np.arange(0.02, 0.15, 0.02), np.arange(0.05, 0.80, 0.05))) #22 values in the range 0.02-0.75
@@ -109,14 +156,20 @@ def main():
         print(rp, 'restart probability done')
     
     #Save results
-    prn_results_path = '../../results/PRN_neighborhoods'
+    prn_results_path = '../../results/neighborhoods'
     prn_results_dir = os.path.join(prn_results_path, interactome_aname, exper_source)
     check_dir(prn_results_dir)
 
-    file_name = 'PageRank_Nibble_nbhds_0.02-0.75_restart_proba.pkl'
+    if exper_source == 'NCI_ALMANAC':
+        file_name = 'Unique_PageRank_Nibble_nbhds_0.02-0.75_restart_proba.pkl'
+    else:
+        file_name = 'PageRank_Nibble_nbhds_0.02-0.75_restart_proba.pkl'
     pickle.dump(nbhd_dict_all_alpha, open(os.path.join(prn_results_dir, file_name), 'wb'))
 
-    file_name = 'PageRank_Nibble_conductances_0.02-0.75_restart_proba.pkl'
+    if exper_source == 'NCI_ALMANAC':
+        file_name = 'Unique_PageRank_Nibble_conductances_0.02-0.75_restart_proba.pkl'
+    else:
+        file_name = 'PageRank_Nibble_conductances_0.02-0.75_restart_proba.pkl'
     pickle.dump(conduct_dict_all_alpha, open(os.path.join(prn_results_dir, file_name), 'wb'))
 
 

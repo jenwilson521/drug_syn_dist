@@ -29,6 +29,8 @@ def train_vs_test_scatter(corr_dict_train, corr_dict_test, corr_metric, cl):
             plt.scatter(x_rand[1], np.mean(corr_test_list), c = 'black', marker = '*', alpha = 0.5, s = 10)
 
             loc += 1
+
+            print(cl, metric, alphaD, np.mean(corr_test_list), np.median(corr_test_list))
     
     plt.ylabel(corr_metric)
 
@@ -42,7 +44,7 @@ def train_vs_test_scatter(corr_dict_train, corr_dict_test, corr_metric, cl):
     plt.xticks(x, labels = [])
 
     figure_name = cl + '_cv_train_vs_test_' + corr_metric + '.png'
-    plt.savefig(os.path.join(figure_path, figure_name), bbox_inches = 'tight', pad_inches = 0.1)
+    #plt.savefig(os.path.join(figure_path, figure_name), bbox_inches = 'tight', pad_inches = 0.1)
 
 
 
@@ -69,7 +71,7 @@ def main():
     post_fit_spearman_test = pickle.load(open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_test_' + model_name + '.pkl'), 'rb'))
 
     for cl in post_fit_pcc_train.keys():
-        train_vs_test_scatter(post_fit_pcc_train[cl], post_fit_pcc_test[cl], 'Spearman', cl)
+        train_vs_test_scatter(post_fit_pcc_train[cl], post_fit_pcc_test[cl], 'Pearson', cl)
 
 
 if __name__ == "__main__":

@@ -109,13 +109,20 @@ def infer_syn(dist, a, b, c = 0, d = 0):
 
 
     """
+    #print(a, b)
     pred_syn = [(d * a) + b for d in dist] #First-degree polynomial
     #pred_syn = [(a * (d**2)) + (b * d) + c for d in dist] #Second-degree polynomial
     #pred_syn = [(a * (di**3)) + (b * (di**2)) + (c * di) + d for di in dist] #Third-degree polynomial
     #pred_syn = [a * np.exp(-b * d) + c for d in dist] #Exponential function
     return pred_syn
 
-def model_lossfunc(dist, exper_syn, a, b, c = 0, d = 0):
+def model_lossfunc(dist, exper_syn, a, b, c = 0, d = 0): #model_lossfunc(params, x_values, exper_syn):
+
+    #a = params[0]
+    #b = params[1]
+
+    #x_opt = params[2:].reshape(len(x_values), -1)
+    #print(x_opt[0])
 
     """
         Predicts synergy according to curve parameters 
@@ -154,6 +161,12 @@ def model_lossfunc(dist, exper_syn, a, b, c = 0, d = 0):
     pred_syn = infer_syn(dist, a, b)
 
     model_loss = np.nansum([(p - e)**2 for p, e in zip(pred_syn, exper_syn)])
+    #mse = 0
+    #for (x,y) in zip(dist, exper_syn):
+    #    pred_syn = infer_syn(x, a, b)
+    #    mse += np.mean((pred_syn - y)**2)
+    
+    #return mse
 
     return model_loss
 
@@ -197,12 +210,23 @@ def optimize_lossfunc(exper_syn, initial_pred, pw_dist_dict, a, b, c = 0, d = 0,
     """
     
     #Minimization is restricted by each combo's min and max pairwise distance
+    #bnds = [(-100, 100), (-200, 200)]
     bnds = [(np.min(pw_dist), np.max(pw_dist)) for combo_targset, pw_dist in pw_dist_dict.items()]
+    #for combo_targset, pw_dist in pw_dist_dict.items():
+    #    bnds.append((np.min(pw_dist), np.max(pw_dist)))
+
+    #pw_dist_list = list(pw_dist_dict.values()) #[[d1, d2, d3], [d2, d4, ]] each inner list corresponds to a combo
+    #x_values = list()
+    #for l in pw_dist_list:
+    #    x_values.append(np.array(l))
                      
     #opt = least_squares(model_lossfunc, initial_pred, args=(exper_syn, a, b, c))
     #                #method = 'Powell') 
 
-    opt = minimize(model_lossfunc, initial_pred, args=(exper_syn, a, b, c, d), method = 'Powell', bounds = bnds)    
+    #initial_guess = np.concatenate([[a, b], np.array([l[0] for l in pw_dist_list])])
+
+    opt = minimize(model_lossfunc, initial_pred, args=(exper_syn, a, b, c, d), method = 'Powell', bounds = bnds)
+    #opt = minimize(model_lossfunc, initial_guess, args =(x_values, exper_syn), method = 'L-BFGS-B') # bounds = bnds)     
 
     return opt
 
@@ -292,11 +316,12 @@ def pipeline(dist_syn_list, pw_combo_and_dist_dict):
     combo_targset = list(zip(*dist_syn_list))[0]
     input_dist = list(zip(*dist_syn_list))[1]
     exper_syn = list(zip(*dist_syn_list))[2]
+    print('PRE PEARSON:', pearsonr(input_dist, exper_syn))
 
     pre_popt, pcov = fit_curve(dist_syn_list) #pre_opt = curve parameters, pcov = covariance matrix
 
     #NOTE - update pre_opt parameters according to curve type (e.g., for second-degree poly, use pre_popt[0], pre_popt[2], pre_popt[3])
-    opt = optimize_lossfunc(exper_syn, input_dist, pw_dist_dict, pre_popt[0], pre_popt[1], maxiter = 1000) #opt = object output from scipy.optimize.minimize
+    opt = optimize_lossfunc(exper_syn, input_dist, pw_dist_dict, pre_popt[0], pre_popt[1], maxiter = 10000) #opt = object output from scipy.optimize.minimize
 
     opt_pw_combo_dict = find_opt_pw_dist(combo_targset, opt.x, pw_combo_and_dist_dict) #
 
@@ -309,7 +334,7 @@ def pipeline(dist_syn_list, pw_combo_and_dist_dict):
 
     pcc_corr, pcc_pval = pearsonr(opt_pw_dist, exper_syn)
     spearman_corr, spearman_pval = spearmanr(opt_pw_dist, exper_syn)
-    #print('PEARSON:', pearsonr(opt_pw_dist, exper_syn))
+    print('PEARSON:', pearsonr(opt_pw_dist, exper_syn))
     #print('SPEARMAN:', spearmanr(opt_pw_dist, exper_syn))
 
     df = len(opt_pw_dist) - len(opt_popt) #degrees of freedom
@@ -587,7 +612,7 @@ def main():
                 
                 #Run pipeline with merged neighborhood distance initialization
                 analysis = 'merged neighborhood'
-                #opt_pw_dist_dict, _ = pipeline(merged_nbhd_dist_syn_list, pw_combo_and_dist_dict)
+                opt_pw_dist_dict, _ = pipeline(merged_nbhd_dist_syn_list, pw_combo_and_dist_dict)
 
                 #Combining results across all cell lines, metrics, and alphaDs
                 #for combo_targset, pw_dist_tuple in opt_pw_dist_dict.items():
@@ -618,7 +643,7 @@ def main():
                 analysis = 'cross-validation'
                 kf = KFold(n_splits = 5, shuffle = True, random_state = 333)
                 targset_train_test_split = kf.split(combo_targset_list)
-                run_cross_validation(targset_train_test_split)
+                #run_cross_validation(targset_train_test_split)
         
     
     #Saving all results
@@ -637,10 +662,10 @@ def main():
     #pickle.dump(post_fit_spearman_shuffle, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_shuffle_' + model_name + '.pkl'), 'wb'))
     #pickle.dump(post_fit_rmse_shuffle, open(os.path.join(outpath, 'post_fit_rse_dict_shuffle_' + model_name + '.pkl'), 'wb'))
 
-    pickle.dump(post_fit_pcc_train, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_spearman_train, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_pcc_test, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
-    pickle.dump(post_fit_spearman_test, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_pcc_train, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_spearman_train, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_train_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_pcc_test, open(os.path.join(outpath, 'post_fit_pcc_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
+    #pickle.dump(post_fit_spearman_test, open(os.path.join(outpath, 'post_fit_spearman_and_sig_dict_test_' + model_name + '.pkl'), 'wb'))
 
 
 
