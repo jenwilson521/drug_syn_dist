@@ -1,6 +1,14 @@
 data/DREAM_inputs/*
 data/Nair_et_al_inputs/*
 data/NCI_ALMANAC_inputs/*
+data/GDA_files/*
 data/Bliss_score_list_92_drugs_22RV1.xlsx
 
 results/*
+
+scripts/DrugBank/*
+
+scripts/read_input_data/read_NCI_ALMANAC_data.py
+
+scripts/neighborhoods/job_out/*
+scripts/neighborhoods/__pycache__/*
