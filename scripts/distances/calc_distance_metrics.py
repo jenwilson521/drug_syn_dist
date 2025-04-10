@@ -128,7 +128,7 @@ def avg_proba_n2n(source, target):
             Average probability of reaching target neighborhood
     """
 
-    source_dp = nbhd_dict[source]
+    source_dp = nbhd_dp_dict[source]
     target_nbhd = nbhd_dict[target]
 
     cumm_proba = 0
@@ -199,21 +199,21 @@ def main():
     #Load interactome
     interactome_source = 'PathFX'
     threshold = 0.50
-    exper_source = 'DREAM'
+    exper_source = 'NCI_ALMANAC'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
-    interactome_path = '../../data/interactomes'
-    interactome_file = str(threshold) + '_filtered_' + interactome_source + '_scored_interactome.txt'
+    interactome_path = '../../data'
+    interactome_file = str(threshold) + 'thr_filtered_' + interactome_source + '_scored_interactome.txt'
     interactome_df = pd.read_csv(os.path.join(interactome_path, interactome_file), sep = '\t', na_filter = False)
     interactome = nx.from_pandas_edgelist(interactome_df, 'protein1', 'protein2', edge_attr = 'cost')
     int_nodes = list(interactome.nodes())
     int_nodes_sorted = sorted(int_nodes)
     
     global nbhd_dict
-    prn_nbhd_path = '../../results/PRN_neighborhoods'
+    prn_nbhd_path = '../../results/neighborhoods'
     prn_nbhd_dir = os.path.join(prn_nbhd_path, interactome_aname, exper_source)
 
-    target_type = 'single' #multi
+    target_type = 'multi' #'single'
     if target_type == 'single': #all_targs = [T1, T2, T3, ...]
         #Load PageRank-Nibble neighborhoods
         nbhd_filename = 'PRN_nbhd_opt_alpha.pkl'
@@ -228,7 +228,7 @@ def main():
 
     #Diffusion profile path/directory
     dp_results_path = '../../results/RWR_diffusion_profiles'
-    dp_results_dir = os.path.join(dp_results_path, exper_source, interactome_aname)
+    dp_results_dir = os.path.join(dp_results_path, interactome_aname, exper_source)
 
 
     manager = Manager()
@@ -283,7 +283,7 @@ def main():
     
     #Save results
     results_path = '../../results/distance_dictionaries'
-    results_dir = os.path.join(results_path, exper_source, interactome_aname)
+    results_dir = os.path.join(results_path, interactome_aname, exper_source)
     check_dir(results_dir)
 
     sp_filename = target_type + '_target_SP_dict.pkl'

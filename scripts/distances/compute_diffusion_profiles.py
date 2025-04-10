@@ -117,23 +117,23 @@ def main():
     #Load interactome
     interactome_source = 'PathFX'
     threshold = 0.50
-    exper_source = 'GI'
+    exper_source = 'NCI_ALMANAC'
     interactome_aname = interactome_source + '_' + str(threshold) + 'thr_int'
 
-    interactome_path = '../../data/interactomes'
-    interactome_file = str(threshold) + '_filtered_' + interactome_source + '_scored_interactome.txt'
+    interactome_path = '../../data'
+    interactome_file = str(threshold) + 'thr_filtered_' + interactome_source + '_scored_interactome.txt'
     interactome_df = pd.read_csv(os.path.join(interactome_path, interactome_file), sep = '\t', na_filter = False)
     interactome = nx.from_pandas_edgelist(interactome_df, 'protein1', 'protein2', edge_attr = 'cost')
     int_nodes = list(interactome.nodes())
 
     #Load PageRank-Nibble neighborhoods
-    prn_nbhd_path = '../../results/PRN_neighborhoods'
+    prn_nbhd_path = '../../results/neighborhoods'
     prn_nbhd_dir = os.path.join(prn_nbhd_path, interactome_aname, exper_source)
     prn_filename = 'PRN_nbhd_opt_alpha.pkl'
     global prn_nbhd_dict
     prn_nbhd_dict = pickle.load(open(os.path.join(prn_nbhd_dir, prn_filename), 'rb'))
 
-    target_type = 'single' #multi
+    target_type = 'single' #'multi' #'single'
 
     tol = 1e-7 #Tolerance used to determine RWR convergence
     T = build_transition_matrix()
@@ -148,7 +148,8 @@ def main():
             #Load target starting points for RWR
             if target_type == 'single':
                 targs = list(prn_nbhd_dict.keys())
-            elif target_type == 'multi': #DREAM challenge multi-target sets
+            
+            elif target_type == 'multi' and exper_source == 'DREAM': #DREAM challenge multi-target sets
                 DREAM_inputs_dir = '../../data/DREAM_inputs'
                 targset2syn_file = 'targset_to_syn_dict.pkl'
                 targset_to_syn_dict = pickle.load(open(os.path.join(DREAM_inputs_dir, targset2syn_file), 'rb')) #[cell line][Targetset1__Targetset2] = synergy
@@ -159,6 +160,18 @@ def main():
                             multi_targ_set.add(targset) #{T1_T2_T3, ...}
                 
                 targs = list(multi_targ_set)
+
+            elif target_type == 'multi' and exper_source == 'NCI_ALMANAC':
+                NCI_inputs_dir = '../../data/NCI_ALMANAC_inputs'
+                dbid2targset_file = 'dbid_to_targs_dict_db_022825.pkl'
+                dbid_to_targs_dict = pickle.load(open(os.path.join(NCI_inputs_dir, dbid2targset_file), 'rb'))
+                multi_targ_set = set()
+                for dbid in dbid_to_targs_dict.keys():
+                    targset = '_'.join(sorted(dbid_to_targs_dict[dbid]))
+                    multi_targ_set.add(targset)
+
+                targs = list(multi_targ_set)
+
 
             #Multi-processing for full vector computation
             dp_dict = manager.dict()
@@ -172,7 +185,7 @@ def main():
             #Something weird happens with dp_dict during pool process, need to convert back to dictionary
             dp_dict_save = dict(dp_dict)
             dp_results_path = '../../results/RWR_diffusion_profiles'
-            dp_results_dir = os.path.join(dp_results_path, exper_source, interactome_aname)
+            dp_results_dir = os.path.join(dp_results_path, interactome_aname, exper_source)
             check_dir(dp_results_dir)
 
             filename = target_type + '_target_RWR_diffusion_profiles_' + starting_nodes_choice + \
