@@ -1,12 +1,15 @@
 data/DREAM_inputs/*
-data/Nair_et_al_inputs/*
+data/Nair_inputs/*
 data/NCI_ALMANAC_inputs/*
 data/GDA_files/*
 data/Bliss_score_list_92_drugs_22RV1.xlsx
+data/Prostate_Organoid_inputs/*
 
 resources/drugbank_vocabulary.csv
 resources/DrugBank.xml
 resources/DrugBank022825.xlsx
+resources/DrugBank061825.xlsx
+resources/Pfx050120_dint.pkl
 
 
 results/*
@@ -17,3 +20,12 @@ scripts/read_input_data/read_NCI_ALMANAC_data.py
 
 scripts/neighborhoods/job_out/*
 scripts/neighborhoods/__pycache__/*
+scripts/distances/job_out/*
+scripts/multi_targ_analysis/job_out/*
+
+scripts/functionality/gene2go
+scripts/functionality/gene2go.gz
+scripts/functionality/dom_targ_pair_nbhd_vs_pathways.py
+
+
+find_drug_combos.py
